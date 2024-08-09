@@ -43,6 +43,16 @@ pub async fn index(login_info: Option<LoginInfoExtractor<LoginInfo>>) -> Html<St
 
                     <li><b>post /api/login</b>: logs a user in</li>
                     <li><b>post /api/logout</b>: logs a user out</li>
+
+                    <li><b>get /api/seen-users</b>: lists the users seen since the server started</li>
+                    <li><b>get /api/seen-users/:index</b>: shows user at the given position</li>
+
+                    <li><b>get /api/create-uuid-v4</b>: generates and returns a uuid value (v4)</li>
+                    <li><b>get /api/echo/:this/and/:that</b>: returns this and that in a json object</li>
+                    <li><b>get /api/echo-path</b>: returns the path of the request in a json object</li>
+                    <li><b>get /api/echo-query-params</b>: returns all query params in a list</li>
+                    <li><b>get /api/echo-parsed-query-params?uuid=<uuid>&list=<item0>&list=<item1></b>: parses the query params and returns them in a list in a json object</li>
+                    <li><b>get /api/echo-uuid-in-path/:uuid</b>: returns the uuid in the path</li>
                 </ul>
             {}
         "#,

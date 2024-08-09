@@ -68,15 +68,15 @@ pub async fn get_seen_users(
 pub async fn get_seen_user(
     _login_info: LoginInfoExtractor<LoginInfo>,
     state: State<AppState>,
-    id: Path<u32>,
+    index: Path<u32>,
 ) -> Result<Json<LoginInfo>, StatusCode> {
-    log::info!("get_logged_in_user: id = '{}'", id.0);
+    log::info!("get_logged_in_user: index = '{}'", index.0);
 
     let login_info = state
         .logins
         .read()
         .iter()
-        .nth(id.0 as usize)
+        .nth(index.0 as usize)
         .ok_or(StatusCode::NOT_FOUND)?
         .1
         .into();

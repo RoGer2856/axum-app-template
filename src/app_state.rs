@@ -196,7 +196,7 @@ impl AxumAppState for AppState {
                 get(crate::endpoints::api::get_seen_users),
             )
             .route(
-                "/api/seen-user/:id",
+                "/api/seen-users/:index",
                 get(crate::endpoints::api::get_seen_user),
             )
             .route("/api/create-uuid-v4", get(create_uuid_v4))
