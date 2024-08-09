@@ -10,7 +10,7 @@ use axum::{
 };
 use axum_helpers::{
     app::AxumAppState,
-    auth::{AuthError, AuthHandler, AuthLayer},
+    auth::{AuthHandler, AuthLayer},
 };
 use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
@@ -139,20 +139,20 @@ impl AppState {
 
 #[async_trait]
 impl AuthHandler<LoginInfo> for AppState {
-    async fn verify_access_token(&mut self, access_token: &str) -> Result<LoginInfo, AuthError> {
+    async fn verify_access_token(&mut self, access_token: &str) -> Result<LoginInfo, StatusCode> {
         let user_login_claims = self
             .decode_user_jwt(access_token)
-            .map_err(|_| AuthError::InvalidAccessToken)?;
+            .map_err(|_| StatusCode::BAD_REQUEST)?;
 
         self.logins
             .read()
             .get(&LoginName(user_login_claims.sub.clone()))
-            .ok_or_else(|| AuthError::InvalidAccessToken)
+            .ok_or_else(|| StatusCode::BAD_REQUEST)
             .and_then(|login_info| {
                 if login_info.logged_in {
                     Ok(login_info.into())
                 } else {
-                    Err(AuthError::InvalidAccessToken)
+                    Err(StatusCode::BAD_REQUEST)
                 }
             })
     }
@@ -161,26 +161,31 @@ impl AuthHandler<LoginInfo> for AppState {
         &mut self,
         _access_token: &str,
         login_info: &Arc<LoginInfo>,
-    ) -> Result<(String, Duration), AuthError> {
+    ) -> Option<(String, Duration)> {
         self.logins
             .read()
             .get(&LoginName(login_info.loginname.clone()))
-            .ok_or_else(|| AuthError::InvalidAccessToken)
             .and_then(|login_info| {
                 if login_info.logged_in {
                     let access_token = self
                         .create_jwt_for_user(&login_info.loginname, &login_info.role)
-                        .map_err(|_| AuthError::Internal)?;
-                    Ok((access_token, ACCESS_TOKEN_EXPIRATION_TIME_DURATION))
+                        .ok()?;
+                    Some((access_token, ACCESS_TOKEN_EXPIRATION_TIME_DURATION))
                 } else {
-                    Err(AuthError::InvalidAccessToken)
+                    None
                 }
             })
     }
 
-    async fn invalidate_access_token(&mut self, _access_token: &str, login_info: &Arc<LoginInfo>) {
+    async fn revoke_access_token(&mut self, _access_token: &str, login_info: &Arc<LoginInfo>) {
         self.logout(login_info);
     }
+
+    async fn verify_refresh_token(&mut self, _refresh_token: &str) -> Result<(), StatusCode> {
+        Err(StatusCode::BAD_REQUEST)
+    }
+
+    async fn revoke_refresh_token(&mut self, _refresh_token: &str) {}
 }
 
 impl AxumAppState for AppState {

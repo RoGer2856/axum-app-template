@@ -213,7 +213,7 @@ dependencies = [
 [[package]]
 name = "axum-helpers"
 version = "0.1.0"
-source = "git+https://github.com/bytifex/axum-helpers.git?rev=0c9f39f36f8d17af010cb78667c73cd56c3cb497#0c9f39f36f8d17af010cb78667c73cd56c3cb497"
+source = "git+https://github.com/bytifex/axum-helpers.git?rev=c47017c8e47817d481b92fa2eb76f4ecc9070291#c47017c8e47817d481b92fa2eb76f4ecc9070291"
 dependencies = [
  "async-trait",
  "axum",

@@ -5,9 +5,7 @@ use axum::{
     Json,
 };
 use axum_extra::extract::Query;
-use axum_helpers::auth::{
-    AccessTokenInfo, AuthLoginResponse, AuthLogoutResponse, LoginInfoExtractor,
-};
+use axum_helpers::auth::{AccessTokenResponse, AuthLogoutResponse, LoginInfoExtractor};
 use serde_json::json;
 use uuid::Uuid;
 
@@ -21,18 +19,14 @@ use crate::{
 pub async fn login(
     State(mut state): State<AppState>,
     Json(login_request): Json<LoginRequest>,
-) -> Result<(StatusCode, AuthLoginResponse, Json<LoginResponse>), StatusCode> {
+) -> Result<(StatusCode, AccessTokenResponse, Json<LoginResponse>), StatusCode> {
     let (access_token_expiration_time, access_token) = state
         .login(&login_request.loginname, login_request.password)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok((
         StatusCode::OK,
-        AuthLoginResponse::new(AccessTokenInfo::with_time_delta(
-            access_token.0,
-            access_token_expiration_time,
-            None,
-        )),
+        AccessTokenResponse::with_time_delta(access_token.0, access_token_expiration_time, None),
         Json(LoginResponse {
             loginname: login_request.loginname,
         }),
@@ -42,7 +36,7 @@ pub async fn login(
 pub async fn logout(
     LoginInfoExtractor(_login_info): LoginInfoExtractor<LoginInfo>,
 ) -> Result<AuthLogoutResponse, StatusCode> {
-    Ok(AuthLogoutResponse)
+    Ok(AuthLogoutResponse::new(Some("/"), Some("/")))
 }
 
 #[fn_decorator::use_decorator(check_required_role("admin"), override_return_type = impl IntoResponse, exact_parameters = [_login_info])]
