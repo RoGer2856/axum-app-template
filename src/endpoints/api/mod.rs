@@ -5,7 +5,9 @@ use axum::{
     Json,
 };
 use axum_extra::extract::Query;
-use axum_helpers::auth::{AuthLoginResponse, AuthLogoutResponse, LoginInfoExtractor};
+use axum_helpers::auth::{
+    AccessTokenInfo, AuthLoginResponse, AuthLogoutResponse, LoginInfoExtractor,
+};
 use serde_json::json;
 use uuid::Uuid;
 
@@ -26,7 +28,11 @@ pub async fn login(
 
     Ok((
         StatusCode::OK,
-        AuthLoginResponse::new(access_token.0, access_token_expiration_time),
+        AuthLoginResponse::new(AccessTokenInfo::with_time_delta(
+            access_token.0,
+            access_token_expiration_time,
+            None,
+        )),
         Json(LoginResponse {
             loginname: login_request.loginname,
         }),
