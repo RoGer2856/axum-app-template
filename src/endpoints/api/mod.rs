@@ -20,13 +20,13 @@ pub async fn login(
     State(mut state): State<AppState>,
     Json(login_request): Json<LoginRequest>,
 ) -> Result<(StatusCode, AccessTokenResponse, Json<LoginResponse>), StatusCode> {
-    let (access_token_expiration_time, access_token) = state
+    let access_token_response = state
         .login(&login_request.loginname, login_request.password)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok((
         StatusCode::OK,
-        AccessTokenResponse::with_time_delta(access_token.0, access_token_expiration_time, None),
+        access_token_response,
         Json(LoginResponse {
             loginname: login_request.loginname,
         }),

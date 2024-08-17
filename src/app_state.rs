@@ -10,7 +10,7 @@ use axum::{
 };
 use axum_helpers::{
     app::AxumAppState,
-    auth::{AuthHandler, AuthLayer},
+    auth::{AccessToken, AccessTokenResponse, AuthHandler, AuthLayer, RefreshToken},
 };
 use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
@@ -29,9 +29,6 @@ pub struct AppState {
     secret: Vec<u8>,
     pub logins: ArcRwLock<BTreeMap<LoginName, StoredLoginInfo>>,
 }
-
-#[derive(Debug, Clone)]
-pub struct AccessToken(pub String);
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct LoginName(pub String);
@@ -55,7 +52,7 @@ impl AppState {
         &mut self,
         loginname: impl Into<String>,
         _password: impl Into<String>,
-    ) -> Result<(Duration, AccessToken), ()> {
+    ) -> Result<AccessTokenResponse, ()> {
         let loginname = loginname.into();
         let role = match loginname.as_str() {
             "admin" => "admin",
@@ -64,7 +61,11 @@ impl AppState {
         .into();
 
         let jwt = self.create_jwt_for_user(&loginname, &role)?;
-        let access_token = AccessToken(jwt);
+        let access_token_response = AccessTokenResponse::with_time_delta(
+            AccessToken::new(jwt),
+            ACCESS_TOKEN_EXPIRATION_TIME_DURATION,
+            None,
+        );
 
         let login_info = StoredLoginInfo {
             loginname,
@@ -86,7 +87,7 @@ impl AppState {
 
         log::info!("User logged in, loginname = '{}'", login_info.loginname);
 
-        Ok((ACCESS_TOKEN_EXPIRATION_TIME_DURATION, access_token))
+        Ok(access_token_response)
     }
 
     pub fn logout(&mut self, login_info: &Arc<LoginInfo>) {
@@ -139,7 +140,10 @@ impl AppState {
 
 #[async_trait]
 impl AuthHandler<LoginInfo> for AppState {
-    async fn verify_access_token(&mut self, access_token: &str) -> Result<LoginInfo, StatusCode> {
+    async fn verify_access_token(
+        &mut self,
+        access_token: &AccessToken,
+    ) -> Result<LoginInfo, StatusCode> {
         let user_login_claims = self
             .decode_user_jwt(access_token)
             .map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -159,9 +163,9 @@ impl AuthHandler<LoginInfo> for AppState {
 
     async fn update_access_token(
         &mut self,
-        _access_token: &str,
+        _access_token: &AccessToken,
         login_info: &Arc<LoginInfo>,
-    ) -> Option<(String, Duration)> {
+    ) -> Option<(AccessToken, Duration)> {
         self.logins
             .read()
             .get(&LoginName(login_info.loginname.clone()))
@@ -170,22 +174,32 @@ impl AuthHandler<LoginInfo> for AppState {
                     let access_token = self
                         .create_jwt_for_user(&login_info.loginname, &login_info.role)
                         .ok()?;
-                    Some((access_token, ACCESS_TOKEN_EXPIRATION_TIME_DURATION))
+                    Some((
+                        AccessToken::new(access_token),
+                        ACCESS_TOKEN_EXPIRATION_TIME_DURATION,
+                    ))
                 } else {
                     None
                 }
             })
     }
 
-    async fn revoke_access_token(&mut self, _access_token: &str, login_info: &Arc<LoginInfo>) {
+    async fn revoke_access_token(
+        &mut self,
+        _access_token: &AccessToken,
+        login_info: &Arc<LoginInfo>,
+    ) {
         self.logout(login_info);
     }
 
-    async fn verify_refresh_token(&mut self, _refresh_token: &str) -> Result<(), StatusCode> {
+    async fn verify_refresh_token(
+        &mut self,
+        _refresh_token: &RefreshToken,
+    ) -> Result<(), StatusCode> {
         Err(StatusCode::BAD_REQUEST)
     }
 
-    async fn revoke_refresh_token(&mut self, _refresh_token: &str) {}
+    async fn revoke_refresh_token(&mut self, _refresh_token: &RefreshToken) {}
 }
 
 impl AxumAppState for AppState {
